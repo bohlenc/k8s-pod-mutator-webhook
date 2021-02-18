@@ -1,0 +1,73 @@
+
+init:
+  logLevel: info
+
+  image:
+    repository: bohlenc/k8s-pod-mutator-init
+    pullPolicy: IfNotPresent
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: ""
+
+webhook:
+  logLevel: info
+  patch: |
+    # provide your patch here
+  policy:
+    # define your policy here
+    namespaceLabels:
+      excluded: []
+      included: []
+      matching: {}
+    podLabels:
+      excluded: []
+      included: []
+      matching: {}
+
+  image:
+    repository: bohlenc/k8s-pod-mutator-webhook
+    pullPolicy: IfNotPresent
+    # Overrides the image tag whose default is the chart appVersion.
+    tag: ""
+
+  httpsPort: 8443
+
+  readinessProbe:
+    httpGet:
+      scheme: HTTPS
+      port: https
+      path: "/ready"
+    initialDelaySeconds: 1
+    periodSeconds: 5
+    timeoutSeconds: 1
+    failureThreshold: 3
+
+  resources:
+    limits:
+      cpu: 200m
+      memory: 128Mi
+    requests:
+      cpu: 200m
+      memory: 128Mi
+
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+  annotations: {}
+  labels: {}
+
+podAnnotations: {}
+podLabels: {}
+
+service:
+  type: ClusterIP
+  httpsPort: 443
+
+  annotations: {}
+  labels: {}
+
+replicaCount: 1

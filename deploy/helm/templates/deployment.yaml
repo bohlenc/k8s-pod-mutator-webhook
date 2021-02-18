@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "k8s-pod-mutator-webhook.fullname" . }}
+  labels:
+    {{- include "k8s-pod-mutator-webhook.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "k8s-pod-mutator-webhook.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config-startup: {{ include (print .Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- range $key, $value := .Values.podAnnotations }}
+        {{- printf "%s: %s" $key (tpl $value $ | quote) | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "k8s-pod-mutator-webhook.selectorLabels" . | nindent 8 }}
+        {{- range $key, $value := .Values.podLabels }}
+        {{- printf "%s: %s" $key (tpl $value $ | quote) | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "k8s-pod-mutator-webhook.fullname" . }}
+      initContainers:
+        - name: init
+          image: "{{ .Values.init.image.repository }}:{{ .Values.init.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.init.image.pullPolicy }}
+          args:
+            - --log-level={{ .Values.init.logLevel | default "info" }}
+            - --tls-cert-output=/etc/k8s-pod-mutator/certs/tls.crt
+            - --tls-key-output=/etc/k8s-pod-mutator/certs/tls.key
+            - --webhook-config-template=/etc/k8s-pod-mutator/config/webhook_config_template.yaml
+          volumeMounts:
+          - name: certs
+            mountPath: /etc/k8s-pod-mutator/certs
+          - name: config
+            mountPath: /etc/k8s-pod-mutator/config
+      containers:
+        - name: webhook
+          image: "{{ .Values.webhook.image.repository }}:{{ .Values.webhook.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.webhook.image.pullPolicy }}
+          args:
+          - --log-level={{ .Values.webhook.logLevel | default "info" }}
+          - --port={{ .Values.webhook.httpsPort }}
+          - --tls=true
+          - --tls-cert=/etc/k8s-pod-mutator/certs/tls.crt
+          - --tls-key=/etc/k8s-pod-mutator/certs/tls.key
+          - --patch=/etc/k8s-pod-mutator/config/patch.yaml
+          ports:
+            - name: https
+              containerPort: {{ .Values.webhook.httpsPort }}
+              protocol: TCP
+          readinessProbe:
+            {{- toYaml .Values.webhook.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.webhook.resources | nindent 12 }}
+          volumeMounts:
+            - name: certs
+              mountPath: /etc/k8s-pod-mutator/certs
+            - name: config
+              mountPath: /etc/k8s-pod-mutator/config
+      volumes:
+        - name: certs
+          emptyDir: {}
+        - name: config
+          configMap:
+            name: {{ include "k8s-pod-mutator-webhook.fullname" . }}

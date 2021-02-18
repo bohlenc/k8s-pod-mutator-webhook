@@ -1,0 +1,72 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "k8s-pod-mutator-webhook.fullname" . }}
+  labels:
+  {{- include "k8s-pod-mutator-webhook.labels" . | nindent 4 }}
+data:
+  webhook_config_template.yaml: |-
+    apiVersion: admissionregistration.k8s.io/v1
+    kind: MutatingWebhookConfiguration
+    metadata:
+      name: {{ include "k8s-pod-mutator-webhook.fullname" . }}
+      labels:
+      {{- include "k8s-pod-mutator-webhook.labels" . | nindent 4 }}
+    webhooks:
+      - name: webhook.k8s-pod-mutator.io
+        admissionReviewVersions: ["v1"]
+        clientConfig:
+          service:
+            name: {{ include "k8s-pod-mutator-webhook.fullname" . }}
+            namespace: {{ .Release.Namespace }}
+            path: "/mutate"
+        rules:
+          - operations: ["CREATE"]
+            apiGroups: [""]
+            apiVersions: ["v1"]
+            resources: ["pods"]
+        matchPolicy: Equivalent
+        sideEffects: None
+        reinvocationPolicy: Never
+        failurePolicy: Ignore
+        timeoutSeconds: 2
+        namespaceSelector:
+          matchExpressions:
+            - key: control-plane # ignore kube-system
+              operator: DoesNotExist
+            {{- range .Values.webhook.policy.namespaceLabels.excluded }}
+            - key: {{ . }}
+              operator: DoesNotExist
+            {{- end }}
+            {{- range .Values.webhook.policy.namespaceLabels.included }}
+            - key: {{ . }}
+              operator: Exists
+          {{- end }}
+          {{- if .Values.webhook.policy.namespaceLabels.matching }}
+          matchLabels:
+          {{- range $key, $value := .Values.webhook.policy.namespaceLabels.matching }}
+          {{- printf "%s: %s" $key (tpl $value $ | quote) | nindent 8 }}
+          {{- end }}
+        {{- end }}
+        {{- if or (or .Values.webhook.policy.podLabels.excluded .Values.webhook.policy.podLabels.included) .Values.webhook.policy.podLabels.matching }}
+        objectSelector:
+          matchExpressions:
+            {{- range .Values.webhook.policy.podLabels.excluded }}
+            - key: {{ . }}
+              operator: DoesNotExist
+            {{- end }}
+            {{- range .Values.webhook.policy.podLabels.included }}
+            - key: {{ . }}
+              operator: Exists
+          {{- end }}
+          {{- if .Values.webhook.policy.podLabels.matching }}
+          matchLabels:
+          {{- range $key, $value := .Values.webhook.policy.podLabels.matching }}
+          {{- printf "%s: %s" $key (tpl $value $ | quote) | nindent 8 }}
+        {{- end }}
+        {{- end }}
+      {{- end }}
+  patch.yaml: |-
+    {{- tpl .Values.webhook.patch $ | nindent 4 }}
+
+

@@ -1,0 +1,35 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "k8s-pod-mutator-webhook.fullname" . }}
+  labels:
+  {{- include "k8s-pod-mutator-webhook.labels" . | nindent 4 }}
+  {{- range $key, $value := .Values.serviceAccount.labels }}
+  {{- printf "%s: %s" $key (tpl $value $ | quote) | nindent 4 }}
+  {{- end }}
+  {{- with .Values.serviceAccount.annotations }}
+  annotations:
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: create-mutating-webhook-configuration
+rules:
+  - apiGroups: ["*"]
+    resources: ["mutatingwebhookconfigurations"]
+    verbs: ["get", "create", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ include "k8s-pod-mutator-webhook.fullname" . }}-create-mutating-webhook-configuration
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "k8s-pod-mutator-webhook.fullname" . }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: create-mutating-webhook-configuration

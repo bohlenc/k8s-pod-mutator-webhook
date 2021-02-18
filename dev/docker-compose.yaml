@@ -1,0 +1,10 @@
+version: '3.1'
+services:
+  k8s_pod_mutator_webhook:
+    image:  bohlenc/k8s-pod-mutator-webhook:latest
+    command: ["--port=8080", "--tls=false", "--log-level=debug"]
+    ports:
+      - 8080:8080
+      - 8443:8443
+    volumes:
+      - ./patch.yaml/:/etc/k8s-pod-mutator/config/patch.yaml

@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "k8s-pod-mutator-webhook.fullname" . }}
+  {{- with .Values.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  labels:
+    {{- include "k8s-pod-mutator-webhook.labels" . | nindent 4 }}
+    {{- range $key, $value := .Values.service.labels }}
+    {{- printf "%s: %s" $key (tpl $value $ | quote) | nindent 4 }}
+    {{- end }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - name: https
+      port: {{ .Values.service.httpsPort }}
+      targetPort: https
+      protocol: TCP
+  selector:
+    {{- include "k8s-pod-mutator-webhook.selectorLabels" . | nindent 4 }}
