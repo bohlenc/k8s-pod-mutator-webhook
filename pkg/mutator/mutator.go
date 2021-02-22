@@ -57,7 +57,7 @@ func readAsJsonBytes(patchFile string) ([]byte, error) {
 	return patchJsonBytes, nil
 }
 
-func (i *Mutator) Mutate(request *admissionv1.AdmissionRequest) *admissionv1.AdmissionResponse {
+func (m *Mutator) Mutate(request *admissionv1.AdmissionRequest) *admissionv1.AdmissionResponse {
 	var pod corev1.Pod
 	if err := json.Unmarshal(request.Object.Raw, &pod); err != nil {
 		logger.Logger.WithFields(logrus.Fields{
@@ -87,7 +87,7 @@ func (i *Mutator) Mutate(request *admissionv1.AdmissionRequest) *admissionv1.Adm
 		}
 	}
 
-	jsonPatch, err := createJsonPatch(&pod, i.patchJsonBytes)
+	jsonPatch, err := createJsonPatch(&pod, m.patchJsonBytes)
 	if err != nil {
 		logger.Logger.Errorf("could not create json patch: %v", err)
 		return admission_review.ErrorResponse(err)

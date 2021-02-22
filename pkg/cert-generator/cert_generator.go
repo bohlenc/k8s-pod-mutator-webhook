@@ -60,7 +60,7 @@ func Generate(serviceMetadata webhook.ServiceMetadata, outputFiles CertOutputFil
 	if err != nil {
 		return nil, err
 	}
-	caCert, err := createCert(caX509Cert, &caKey.PublicKey, caX509Cert, caKey)
+	caCert, err := createCert(caX509Cert, caKey.PublicKey, caX509Cert, *caKey)
 	if err != nil {
 		return nil, err
 	}
@@ -88,16 +88,16 @@ func Generate(serviceMetadata webhook.ServiceMetadata, outputFiles CertOutputFil
 	if err != nil {
 		return nil, err
 	}
-	tlsCert, err := createCert(tlsX509Cert, &tlsKey.PublicKey, caX509Cert, caKey)
+	tlsCert, err := createCert(tlsX509Cert, tlsKey.PublicKey, caX509Cert, *caKey)
 	if err != nil {
 		return nil, err
 	}
 
-	encodedCaKey, err := encode(caKey)
+	encodedCaKey, err := encode(*caKey)
 	if err != nil {
 		return nil, err
 	}
-	encodedTlsKey, err := encode(tlsKey)
+	encodedTlsKey, err := encode(*tlsKey)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +121,7 @@ func Generate(serviceMetadata webhook.ServiceMetadata, outputFiles CertOutputFil
 	return certs, nil
 }
 
-func createCert(x509Cert *x509.Certificate, publicKey *rsa.PublicKey, caX509Cert *x509.Certificate, caKey *rsa.PrivateKey) (*bytes.Buffer, error) {
+func createCert(x509Cert *x509.Certificate, publicKey rsa.PublicKey, caX509Cert *x509.Certificate, caKey rsa.PrivateKey) (*bytes.Buffer, error) {
 	certBytes, err := x509.CreateCertificate(cryptorand.Reader, x509Cert, caX509Cert, publicKey, caKey)
 	if err != nil {
 		return nil, err
@@ -132,11 +132,11 @@ func createCert(x509Cert *x509.Certificate, publicKey *rsa.PublicKey, caX509Cert
 	return certPem, err
 }
 
-func encode(key *rsa.PrivateKey) (*bytes.Buffer, error) {
+func encode(key rsa.PrivateKey) (*bytes.Buffer, error) {
 	keyPem := &bytes.Buffer{}
 	err := pem.Encode(keyPem, &pem.Block{
 		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(key),
+		Bytes: x509.MarshalPKCS1PrivateKey(&key),
 	})
 	return keyPem, err
 }
