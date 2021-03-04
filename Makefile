@@ -1,4 +1,4 @@
-IMAGE_VERSION ?= 1.0.0
+IMAGE_VERSION ?= 1.0.1
 IMAGE_REPO ?= docker.io/bohlenc
 
 IMAGE_NAME_INIT ?= k8s-pod-mutator-init

@@ -122,7 +122,7 @@ func Generate(serviceMetadata webhook.ServiceMetadata, outputFiles CertOutputFil
 }
 
 func createCert(x509Cert *x509.Certificate, publicKey rsa.PublicKey, caX509Cert *x509.Certificate, caKey rsa.PrivateKey) (*bytes.Buffer, error) {
-	certBytes, err := x509.CreateCertificate(cryptorand.Reader, x509Cert, caX509Cert, publicKey, caKey)
+	certBytes, err := x509.CreateCertificate(cryptorand.Reader, x509Cert, caX509Cert, &publicKey, &caKey)
 	if err != nil {
 		return nil, err
 	}
