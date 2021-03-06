@@ -7,7 +7,7 @@ import (
 )
 
 func TestGenerate(t *testing.T) {
-	_, err := Generate(
+	certs, _ := Generate(
 		webhook.ServiceMetadata{
 			Name:      "some-service-name",
 			Namespace: "some-service-namespace",
@@ -19,5 +19,9 @@ func TestGenerate(t *testing.T) {
 			TlsKeyOutputFile:  "/tmp/tls.key",
 		},
 	)
-	assert.Nil(t, err)
+
+	assert.NotNil(t, certs.CaCert)
+	assert.NotNil(t, certs.CaKey)
+	assert.NotNil(t, certs.TlsCert)
+	assert.NotNil(t, certs.TlsKey)
 }
