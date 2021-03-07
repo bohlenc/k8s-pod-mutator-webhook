@@ -1,6 +1,6 @@
 TAG ?=
 
-IMAGE_VERSION ?= 1.0.1
+IMAGE_VERSION ?= 1.1.0
 IMAGE_REPO ?= docker.io/bohlenc
 
 IMAGE_NAME_INIT ?= k8s-pod-mutator-init

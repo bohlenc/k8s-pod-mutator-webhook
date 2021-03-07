@@ -3,4 +3,4 @@ name: k8s-pod-mutator-webhook
 description: Kubernetes Mutating Admission Webhook for Pods. Applies arbitrary changes to Pod manifests.
 type: application
 version: 1.0.0
-appVersion: 1.0.1
+appVersion: 1.1.0
