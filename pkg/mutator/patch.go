@@ -9,13 +9,11 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"sigs.k8s.io/yaml"
-	"sync"
 )
 
 const statusAnnotation = "k8s-pod-mutator.io/mutated"
 
 type Patch struct {
-	mutex     sync.Mutex
 	template  *corev1.Pod
 	wildcards Wildcards
 }
@@ -127,11 +125,9 @@ func splitVolumes(allVolumes []corev1.Volume) (*corev1.Volume, []corev1.Volume, 
 }
 
 func (p *Patch) Apply(pod *corev1.Pod) ([]byte, error) {
-	p.mutex.Lock()
+	patch := appendApplicableWildcards(pod, p.wildcards, *p.template)
 
-	p.appendApplicableWildcards(pod)
-
-	patchJson, err := json.Marshal(p.template)
+	patchJson, err := json.Marshal(patch)
 	if err != nil {
 		return nil, fmt.Errorf("could not marshal patch to json: %v", err)
 	}
@@ -166,8 +162,6 @@ func (p *Patch) Apply(pod *corev1.Pod) ([]byte, error) {
 
 	logger.Logger.Tracef("jsonPatch: %v", jsonPatch)
 
-	p.mutex.Unlock()
-
 	return json.Marshal(jsonPatch)
 }
 
@@ -186,16 +180,17 @@ func postProcess(original []jsonpatch.Operation) []jsonpatch.Operation {
 	return processed
 }
 
-func (p *Patch) appendApplicableWildcards(pod *corev1.Pod) {
-	if p.wildcards.initContainer != nil {
-		p.template.Spec.InitContainers = appendContainerWildcards(pod.Spec.InitContainers, p.template.Spec.InitContainers, *p.wildcards.initContainer)
+func appendApplicableWildcards(pod *corev1.Pod, wildcards Wildcards, template corev1.Pod) corev1.Pod {
+	if wildcards.initContainer != nil {
+		template.Spec.InitContainers = appendContainerWildcards(pod.Spec.InitContainers, template.Spec.InitContainers, *wildcards.initContainer)
 	}
-	if p.wildcards.container != nil {
-		p.template.Spec.Containers = appendContainerWildcards(pod.Spec.Containers, p.template.Spec.Containers, *p.wildcards.container)
+	if wildcards.container != nil {
+		template.Spec.Containers = appendContainerWildcards(pod.Spec.Containers, template.Spec.Containers, *wildcards.container)
 	}
-	if p.wildcards.volume != nil {
-		p.template.Spec.Volumes = appendVolumeWildcards(pod.Spec.Volumes, p.template.Spec.Volumes, *p.wildcards.volume)
+	if wildcards.volume != nil {
+		template.Spec.Volumes = appendVolumeWildcards(pod.Spec.Volumes, template.Spec.Volumes, *wildcards.volume)
 	}
+	return template
 }
 
 func appendContainerWildcards(podContainers []corev1.Container, patchContainers []corev1.Container, wildcard corev1.Container) []corev1.Container {
