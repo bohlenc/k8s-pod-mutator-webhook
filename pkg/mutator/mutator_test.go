@@ -330,6 +330,107 @@ spec:
 	}
 }
 
+func TestMutator_CanApplyChangesWithWildcardToDifferentPods(t *testing.T) {
+	mutator := &Mutator{
+		patch: createPatch(`
+spec:
+  containers:
+  - name: "*"
+    volumeMounts:
+    - mountPath: /etc/ssl
+      name: cacerts
+  volumes:
+  - name: cacerts
+    emptyDir: {}
+`,
+		),
+	}
+
+	expected := unmarshalJsonPatch([]byte(`
+[
+  {
+    "op":"add",
+    "path":"/metadata/annotations",
+    "value":{
+      "k8s-pod-mutator.io/mutated":"true"
+    }
+  },
+  {
+    "op":"add",
+    "path":"/spec/containers/0/volumeMounts",
+    "value":[
+      {
+        "mountPath":"/etc/ssl",
+        "name":"cacerts"
+      }
+    ]
+  },
+  {
+    "op":"add",
+    "path":"/spec/volumes",
+    "value":[
+      {
+        "emptyDir":{
+          
+        },
+        "name":"cacerts"
+      }
+    ]
+  }
+]
+`))
+
+	admissionRequest1 := v1.AdmissionRequest{
+		Object: runtime.RawExtension{
+			Raw: []byte(`
+{
+  "apiVersion": "v1",
+  "kind": "Pod",
+  "metadata": {
+	"name": "test-pod-1"
+  },
+  "spec": {
+	"containers": [
+	  {
+		"name": "test-pod-1-container",
+		"image": "alpine"
+	  }
+	]
+  }
+}`,
+			),
+		},
+	}
+
+	admissionResponse1 := mutator.Mutate(&admissionRequest1)
+	assert.Equal(t, expected, unmarshalJsonPatch(admissionResponse1.Patch))
+
+	admissionRequest2 := v1.AdmissionRequest{
+		Object: runtime.RawExtension{
+			Raw: []byte(`
+{
+  "apiVersion": "v1",
+  "kind": "Pod",
+  "metadata": {
+	"name": "test-pod-2"
+  },
+  "spec": {
+	"containers": [
+	  {
+		"name": "test-pod-2-container",
+		"image": "alpine"
+	  }
+	]
+  }
+}`,
+			),
+		},
+	}
+
+	admissionResponse2 := mutator.Mutate(&admissionRequest2)
+	assert.Equal(t, expected, unmarshalJsonPatch(admissionResponse2.Patch))
+}
+
 func TestMutator_MutateConsidersStatusAnnotationForEligibility(t *testing.T) {
 	testCases := []struct {
 		pod                  string
@@ -488,6 +589,7 @@ metadata:
 func unmarshalJsonPatch(patchBytes []byte) []jsonpatch.Operation {
 	var patch []jsonpatch.Operation
 	err := json.Unmarshal(patchBytes, &patch)
+	println(string(patchBytes))
 	if err != nil {
 		panic(err)
 	}

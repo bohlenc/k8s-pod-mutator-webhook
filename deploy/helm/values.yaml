@@ -11,13 +11,29 @@ init:
 webhook:
   logLevel: info
   patch: |
-    # provide your patch here
+    spec:
+      initContainers:
+      - name: ca
+        image: alpine
+        command: ["sh", "-c", "cp -r /etc/ssl/certs /volume"]
+        volumeMounts:
+        - mountPath: /volume
+          name: cacerts
+      containers:
+      - name: "*"
+        volumeMounts:
+        - mountPath: /etc/ssl
+          name: cacerts
+      volumes:
+      - name: cacerts
+        emptyDir: {}
   policy:
     # define your policy here
     namespaceLabels:
       excluded: []
       included: []
-      matching: {}
+      matching:
+        inject: "true"
     podLabels:
       excluded: []
       included: []
